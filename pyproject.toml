@@ -31,6 +31,8 @@ where = ["src"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+# Makes tests.helpers importable however pytest is started (CI runs the pytest script, not python -m).
+pythonpath = ["."]
 addopts = "-q"
 markers = [
   "integration: needs the Firestore emulator or another local service",
