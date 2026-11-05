@@ -167,5 +167,6 @@ steps:
           --region="${_REGION}" \
           --project="${PROJECT_ID}" \
           --source=deploy \
+          --gcs-source-staging-dir="gs://${PROJECT_ID}-clouddeploy/source" \
           --images="bgb=${_REGION}-docker.pkg.dev/${PROJECT_ID}/bgb/bgb@$$DIGEST" \
           --annotations="commit-sha=${COMMIT_SHA},build-id=${BUILD_ID}"

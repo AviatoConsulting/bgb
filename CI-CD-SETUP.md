@@ -53,6 +53,8 @@ The PR build runs the `cloudbuild.yaml` from the PR branch as `bgb-cloudbuild`, 
 | bgb-deployer | roles/artifactregistry.reader | Repository bgb | Read the image being deployed. |
 | bgb-deployer | roles/iam.serviceAccountUser | Service accounts bgb-ui and bgb-run only | The service runs as bgb-ui and the job as bgb-run, so deploying them requires acting as each. |
 | bgb-run | roles/cloudquotas.viewer | Project | Read quota usage for pacing (Story 10.2). |
+| bgb-cloudbuild | roles/storage.objectAdmin, roles/storage.legacyBucketReader | Bucket PROJECT-clouddeploy | Stage the `deploy/` source for a release. Without a staging bucket gcloud tries to create one, which needs `storage.buckets.create` on the project. |
+| bgb-deployer | roles/storage.objectAdmin, roles/storage.legacyBucketReader | Bucket PROJECT-clouddeploy | Read the staged source and write render and deploy artifacts (`artifact_storage` on each target). |
 
 ## GitHub connection and setup
 
