@@ -436,6 +436,43 @@ resource "google_service_account_iam_member" "cloudbuild_acts_as_deployer" {
   member             = "serviceAccount:${google_service_account.cloudbuild.email}"
 }
 
+# Cloud Deploy staging. `gcloud deploy releases create` uploads deploy/ here (cloudbuild.yaml
+# --gcs-source-staging-dir), and render and deploy jobs write their artifacts here. Without it,
+# gcloud tries to create a default bucket, which bgb-cloudbuild may not do (storage.buckets.create).
+# Old releases stay rollback targets, so their artifacts are kept for a year.
+resource "google_storage_bucket" "clouddeploy" {
+  name                        = "${var.project_id}-clouddeploy"
+  location                    = var.region
+  uniform_bucket_level_access = true
+  public_access_prevention    = "enforced"
+  force_destroy               = false
+
+  lifecycle_rule {
+    condition {
+      age = 365
+    }
+    action {
+      type = "Delete"
+    }
+  }
+
+  depends_on = [google_project_service.required]
+}
+
+# objectAdmin writes and reads objects; legacyBucketReader adds storage.buckets.get, which gcloud
+# uses to check the staging bucket exists. Neither can change or delete the bucket.
+resource "google_storage_bucket_iam_member" "clouddeploy_staging" {
+  for_each = {
+    cloudbuild_objects = { role = "roles/storage.objectAdmin", email = google_service_account.cloudbuild.email }
+    cloudbuild_bucket  = { role = "roles/storage.legacyBucketReader", email = google_service_account.cloudbuild.email }
+    deployer_objects   = { role = "roles/storage.objectAdmin", email = google_service_account.deployer.email }
+    deployer_bucket    = { role = "roles/storage.legacyBucketReader", email = google_service_account.deployer.email }
+  }
+  bucket = google_storage_bucket.clouddeploy.name
+  role   = each.value.role
+  member = "serviceAccount:${each.value.email}"
+}
+
 # bgb-deployer: executes Cloud Deploy rollouts onto Cloud Run.
 resource "google_project_iam_member" "deployer_job_runner" {
   project = var.project_id
@@ -496,8 +533,9 @@ resource "google_clouddeploy_target" "targets" {
   }
 
   execution_configs {
-    usages          = ["RENDER", "DEPLOY"]
-    service_account = google_service_account.deployer.email
+    usages           = ["RENDER", "DEPLOY"]
+    service_account  = google_service_account.deployer.email
+    artifact_storage = "gs://${google_storage_bucket.clouddeploy.name}/artifacts"
   }
 
   deploy_parameters = merge(local.base_deploy_parameters, each.value.parameters)

@@ -73,6 +73,20 @@ def test_release_by_digest_with_annotations():
     assert "--annotations=" in release
 
 
+def test_release_stages_source_in_the_terraform_bucket():
+    # gcloud otherwise creates its own staging bucket, which bgb-cloudbuild may not do.
+    main_tf = (ROOT / "terraform" / "main.tf").read_text()
+    assert (
+        '--gcs-source-staging-dir="gs://${PROJECT_ID}-clouddeploy/source"'
+        in STEPS["create-release"]
+    )
+    assert 'name                        = "${var.project_id}-clouddeploy"' in main_tf
+    assert (
+        'artifact_storage = "gs://${google_storage_bucket.clouddeploy.name}/artifacts"'
+        in main_tf
+    )
+
+
 def test_main_path_runs_no_tests():
     test_cmds = ("pytest", "ruff ", "npm run lint", "npm run build", "terraform ")
     for name, step in STEPS.items():
